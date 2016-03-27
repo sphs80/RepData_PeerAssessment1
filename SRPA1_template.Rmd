@@ -1,0 +1,194 @@
+---
+title: "reportrers"
+author: "susmita ray"
+date: "Sunday, March 27, 2016"
+output: html_document:- keep_md:true
+----
+
+
+
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+INTRODUCTION
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+The data for this assignment can be downloaded from the course web site:
+
+Dataset: Activity monitoring data [52K]
+The variables included in this dataset are:
+
+steps: Number of steps taking in a 5-minute interval (missing values are          coded as NA)
+
+date: The date on which the measurement was taken in YYYY-MM-DD format
+
+interval: Identifier for the 5-minute interval in which measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+echo = TRUE 
+#CLEARING THE WORKSPACE
+
+rm(list=ls())
+
+#LOADING PACKAGES 
+library(knitr)
+library(lubridate)
+library(ggplot2)
+
+#LOADING RAW DATA
+
+rawdata <- read.csv("activity.csv",  header = TRUE, sep = ',', colClasses = c("numeric", "character","integer"))
+
+rawdata$date <- ymd(rawdata$date)
+head(rawdata)
+
+#AGGREGATING steps per day
+steps <- rawdata %>%
+  filter(!is.na(steps)) %>%
+  group_by(date) %>%
+  summarize(steps = sum(steps)) %>%
+  print
+  
+##CREATE the HISTOGRAM of the TOTAL NO OF STEPS EACH DAY
+
+ggplot(steps, aes(x = steps)) +
+  geom_histogram(fill = "firebrick", binwidth = 1000) +
+  labs(title = "Histogram of Steps per day", x = "Steps per day", y = "Frequency")
+  
+##COMPUTE mean and median of the total no of steps taken per day    
+
+mean_steps <- mean(steps$steps, na.rm = TRUE)
+median_steps <- median(steps$steps, na.rm = TRUE)
+
+##AVERAGE DAILY ACTIVITY PATTERN
+Time series plot of the 5-minute interval and average number of steps taken averaged across all days
+
+
+# Compute the means of steps accross all days for each interval
+mean_data <- aggregate(rawdata$steps, 
+                       by=list(rawdata$interval), 
+                       FUN=mean, 
+                       na.rm=TRUE)
+
+# Rename the attributes
+names(mean_data) <- c("interval", "mean")
+
+We display the first few rows of the mean_data data frame:
+
+head(mean_data)
+
+
+# Compute the time series plot
+plot(mean_rawdata$interval, 
+     mean_rawdata$mean, 
+     type="l", 
+     col="green", 
+     lwd=2, 
+     xlab="Interval [minutes]", 
+     ylab="Average number of steps", 
+     main="Time-series of the average number of steps per intervals\n(NA removed)")
+     
+
+##WHICH 5-MINUTE INTERVAL, ON AVERAGE ACROSS ALL DAYS IN THE DATASET, #CONTAINS THE MAXIMUM NUMBER OF STEPS 
+
+# We find the position of the maximum mean
+max_pos <- which(mean_data$mean == max(mean_data$mean))
+
+# We lookup the value of interval at this position
+max_interval <- mean_data[max_pos, 1]
+
+# Clear the workspace
+rm(max_pos, mean_data)
+
+
+
+#IMPUTING MISSING VALUES
+
+Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+
+#Summarize all the missing values:
+
+sum(is.na(data$steps))
+ [1] 2304
+#Missing values are 2304.
+
+##Let's take the approach to fill in a missing NA with the average number of steps in the same 5-min interval.
+#Create a new dataset as the original and use tapply for filling in the missing values with the average number of steps per 5-minute interval:
+
+
+rawdata_full <- rawdata
+nas <- is.na(rawdata_full$steps)
+avg_interval <- tapply(rawdata_full$steps, rawdata_full$interval, mean, na.rm=TRUE, simplify=TRUE)
+rawdata_full$steps[nas] <- avg_interval[as.character(rawdata_full$interval[nas])]
+
+
+# no missing values:
+
+
+sum(is.na(data_full$steps))
+
+
+#Calculate the number of steps taken in each 5-minute interval per day using dplyr and group by interval. Use ggplot for making the histogram:
+
+
+steps_full <- rawdata_full %>%
+  filter(!is.na(steps)) %>%
+  group_by(date) %>%
+  summarize(steps = sum(steps)) %>%
+  print
+
+ggplot(steps_full, aes(x = steps)) +
+  geom_histogram(fill = "blue", binwidth = 1000) +
+  labs(title = "Histogram of Steps per day, including missing values", x = "Steps per day", y = "Frequency")
+
+
+#Calculate the mean and median steps with the filled in values:
+
+mean_steps_full <- mean(steps_full$steps, na.rm = TRUE)
+median_steps_full <- median(steps_full$steps, na.rm = TRUE)
+
+
+#Are there differences in activity patterns between weekdays and weekends?
+
+
+
+Add new factor variable dayType with 2 levels - "weekday" and "weekend"
+
+dayType <- function(dates) {
+  f <- function(date) {
+    if (weekdays(date) %in% c("Saturday", "Sunday")) {
+      "weekend"
+    }
+    else {
+      "weekday"
+    }
+  }
+  sapply(dates, f)
+}
+
+rawdata$dayType <- as.factor(dayType(rawdata$date))
+str(rawdata)
+
+#Panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekdays and weekends
+
+library(lattice)
+
+steps.interval <- aggregate(steps ~ interval + dayType, rawdata, mean)
+xyplot(steps ~ interval | dayType, data=steps.interval, layout=c(2,1), type='l')

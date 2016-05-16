@@ -1,0 +1,200 @@
+---
+title: "Untitled"
+author: "susmita ray"
+date: "Monday, April 25, 2016"
+output:
+  html_document:
+    fig_caption: yes
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+####The program starts from here
+echo=TRUE
+
+**************************
+Loading the necessary packages
+**************************
+```{r, echo=FALSE}
+library(datasets)
+library(knitr)
+library(lubridate)
+library(ggplot2)
+library(lattice)
+#rm(list=ls())
+```
+**********************
+Reading  the data from a comma separated file into a dataframe and cleaning it
+**********************
+```{r, echo=FALSE}
+rawdata <- read.csv("activity.csv",header = TRUE, sep = ',', colClasses = c("numeric", "character","integer"))
+rawdata$date <- ymd(rawdata$date)
+head(rawdata)
+```
+
+*******************************
+Histogram of total no of steps taken per day
+
+*******************************
+
+```{r, echo=FALSE}
+steps.date <- aggregate(steps ~ date, rawdata, sum)
+
+hist(steps.date$steps, 
+     breaks=seq(from=0, to=25000, by=2500),
+     col="green", 
+     xlab="Total number of steps", 
+     ylim=c(0, 20), 
+     main="Histogram of the total number of steps taken each day")
+#barplot(steps.date$steps, names.arg=steps.date$date, xlab="date", ylab="total steps", main = "Total no of steps per day" , col="ue")
+```
+
+*******************************
+Calculating mean and median Total no of steps taken per day
+********************************
+
+```{r, echo=FALSE}
+mean_steps <- mean(steps.date$steps, na.rm = TRUE)
+median_steps <- median(steps.date$steps, na.rm = TRUE)
+```
+
+**********************************
+Average daily activity pattern
+**********************************
+```{r, echo=FALSE}
+completedata <- na.omit(rawdata)
+avgSteps <- aggregate(completedata$steps, list(interval = as.numeric(as.character(completedata$interval))), FUN = "mean")
+
+names(avgSteps)[2] <- "meanOfSteps"
+```
+*****************************
+Time-series plot
+******************************
+```{r, echo=FALSE}
+p <- ggplot(avgSteps, aes(interval, meanOfSteps)) + geom_line(color = "steelblue", size = 0.8) + labs(title = "Time Series Plot of the 5-minute Interval", x = "5-minute intervals", y = "Average Number of Steps Taken")
+
+print(p)
+```
+
+**********************************************************
+5-minute interval, on average across all the days in the dataset,that contains the maximum number of steps
+**********************************************************
+
+```{r, echo=FALSE}
+int4maxsteps <- subset(avgSteps, avgSteps[,2] == max(avgSteps[,2]))
+print(int4maxsteps)
+```
+***************************************
+Inputing missing values
+***************************************
+
+*********************
+Total no of missing values(records with missing values)
+**********************
+
+```{r, echo=FALSE}
+sum(!complete.cases(rawdata))
+```
+
+***************************
+Devising a strategy to put back the missing values
+****************************
+
+```{r, echo=FALSE}
+rawdata_full <- rawdata
+nas <- is.na(rawdata_full$steps)
+avg_interval <- tapply(rawdata_full$steps, rawdata_full$interval, mean, na.rm=TRUE, simplify=TRUE)
+rawdata_full$steps[nas] <- avg_interval[as.character(rawdata_full$interval[nas])]
+```
+
+**************************************
+proof that database created by putting back the missing values has no such record
+
+***************************************
+
+```{r, echo=FALSE}
+sum(!complete.cases(rawdata_full)) 
+```
+
+*****************************
+a histogram of the total number of steps taken each day
+*****************************
+```{r, echo=FALSE}
+steps.date <- aggregate(steps ~ date, rawdata_full, sum)
+names(steps.date) <- c("date", "total")
+hist(steps.date$total, 
+     breaks=seq(from=0, to=25000, by=2500),
+     col="blue", 
+     xlab="Total no of steps",
+     ylim=c(0, 20), 
+     main="Histogram of the total number of steps taken each day(NA replaced by mean value)")
+#barplot(steps.date$steps, names.arg=steps.date$date, ylim=c(0, 25000), xlab= "date", ylab="sum(steps)",)
+```
+          
+          
+          
+******************************
+mean and median calculated here
+******************************
+```{r, echo=FALSE}
+#total.steps.day <- tapply(steps.date$steps, steps.date$date, FUN = sum)
+mean(steps.date$total)
+median(steps.date$total)
+```
+**********************************
+Creating factor variables indicating whether the date is a weekday or weekend.
+*************************************
+
+```{r, echo=FALSE}
+rawdata_full$weekdays <- factor(format(steps.date$date, "%A"))
+levels(rawdata_full$weekdays)  <- list(weekday = c("Monday", "Tuesday",
+                                              "Wednesday", 
+                                              "Thursday", "Friday"),
+                                  weekend = c("Saturday", "Sunday"))
+
+
+levels(rawdata_full$weekdays)
+table(rawdata_full$weekdays)
+```
+
+**************************************
+a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis)
+**************************************
+```{r, echo=FALSE}
+averagesteps_day <- aggregate(rawdata_full$steps, 
+                          list(interval = as.numeric(as.character(rawdata_full$interval)), 
+                               weekdays = rawdata_full$weekdays),
+                          FUN = "mean")
+                          
+names(averagesteps_day)[3] <- "av_OfSteps"
+
+plot2 <- xyplot(averagesteps_day$av_OfSteps ~ averagesteps_day$interval | averagesteps_day$weekdays, 
+                layout = c(1, 2), type = "l", 
+                xlab = "Interval", ylab = "Number of steps")
+print(plot2)
+```                
+
+
+
+
+
+
+
+
+
